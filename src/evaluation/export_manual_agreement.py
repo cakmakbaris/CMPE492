@@ -1,4 +1,4 @@
-"""Format hand-written Codex judgments; no inference, label prediction or model calls."""
+"""Export saved Codex reviews of diagnostic agreement."""
 from __future__ import annotations
 
 import argparse
@@ -8,13 +8,13 @@ from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
+from src.evaluation import CATEGORY_ORDER, LABELS
 
-LABELS = {'T': 'tam_uyumlu', 'P': 'kismen_uyumlu', 'U': 'uyumsuz', 'X': 'tamamen_uyumsuz'}
 EXPLANATIONS = {
-    'T': 'Aynı tıbbi tanı veya eşanlamlı ifade; anlamlı tanısal ayrım saptanmadı.',
-    'P': 'Gerçek tanısal/bileşen örtüşmesi var; kapsam, neden, alt tip veya özgüllük farklı.',
-    'U': 'Aynı tanı değil; klinik olarak ilişkili alan veya ayırıcı tanı içinde.',
-    'X': 'Referansla tanısal örtüşme ve anlamlı klinik alan ilişkisi saptanmadı.',
+    'T': 'The same diagnosis or a clinically equivalent synonym.',
+    'P': 'Meaningful diagnostic overlap with a difference in scope, cause, subtype or specificity.',
+    'U': 'A different diagnosis in a related clinical area or differential.',
+    'X': 'No diagnostic overlap or meaningful clinical relationship to the reference diagnosis.',
 }
 
 
@@ -63,7 +63,7 @@ def export(snapshot: Path, destination: Path) -> None:
             'snapshot_index': index, 'patient_id': patient['patient_id'],
             'reference_diagnosis': patient['reference']['diagnosis_results'],
             'top1_category': LABELS[code[0]],
-            'best_top3_category': LABELS[min(code, key='TPUX'.index)],
+            'best_top3_category': LABELS[min(code, key=CATEGORY_ORDER.index)],
             'hypothesis_count': len(code), 'hypotheses': local_rows,
             'needs_user_review': bool(note), 'manual_review_note': note.get('note', ''),
             'review_priority': note.get('priority', ''),
@@ -98,26 +98,27 @@ def export(snapshot: Path, destination: Path) -> None:
         writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
         writer.writeheader()
         writer.writerows(rows)
-    lines = [f'# {len(patients)} hasta: ilk üç tanının elle referans uyumu', '',
-             'Codex tarafından doğrudan etiketlendi; Qwen etiketleri kullanılmadı. Klinik uzman doğrulaması beklenir.', '',
-             'T = tam uyumlu; P = kısmen uyumlu; U = uyumsuz/ilişkili; X = tamamen uyumsuz.', '',
-             'Kısmi uyum ana hastalık yerine yalnız ek hastalık eşleşmesi olabilir; notları okuyun.', '',
-             '## Sayımlar', '', '```json', json.dumps(summary, ensure_ascii=False, indent=2), '```', '',
-             '## Hastalar', '']
+    legend = ', '.join(f"{code} = {label.replace('_', ' ')}" for code, label in LABELS.items())
+    lines = [f'# Top-3 diagnostic agreement for {len(patients)} patients', '',
+             'Codex assigned the labels. Independent clinical review is pending.', '',
+             legend, '',
+             'A partial match may cover a secondary condition while missing the principal diagnosis.', '',
+             '## Counts', '', '```json', json.dumps(summary, ensure_ascii=False, indent=2), '```', '',
+             '## Patients', '']
     for record in patient_rows:
         lines.extend([f"### {record['snapshot_index']} — {record['patient_id']}", '',
-                      f"Referans: {record['reference_diagnosis']}", ''])
+                      f"Reference diagnosis: {record['reference_diagnosis']}", ''])
         for row in record['hypotheses']:
             lines.append(f"- {row['rank']}. **{row['category']}** — {row['diagnosis']}")
         lines.append('')
         if record['manual_review_note']:
-            lines.extend([f"Kontrol notu: {record['manual_review_note']}", ''])
+            lines.extend([f"Review note: {record['manual_review_note']}", ''])
     (destination / 'review.md').write_text('\n'.join(lines), encoding='utf-8')
-    review_lines = ['# Kullanıcı kontrolü önerilen eşleşmeler', '',
-                    'Sıralar modelin hipotez sırası; snapshot indeksleri sıfırdan başlar.', '']
+    review_lines = ['# Cases flagged for review', '',
+                    'Ranks follow the model output. Snapshot indices start at zero.', '']
     for record in sorted(review_rows, key=lambda row: row['review_priority'] != 'high'):
         review_lines.extend([f"## {record['patient_id']} — {record['review_priority']}", '',
-                             f"Referans: {record['reference_diagnosis']}", ''])
+                             f"Reference diagnosis: {record['reference_diagnosis']}", ''])
         for row in record['hypotheses']:
             review_lines.append(f"- {row['rank']}. {row['diagnosis']} → {row['category']}")
         review_lines.extend(['', record['manual_review_note'], ''])

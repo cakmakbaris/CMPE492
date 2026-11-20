@@ -5,22 +5,45 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
+from src.evaluation import CATEGORY_ORDER, LABELS
+
+
+class HypothesisReview(BaseModel):
+    category: str
+    category_code: str
+
 
 class AllTestsReview(BaseModel):
     patient_id: str
     top1_category: str
     best_top3_category: str
+    hypotheses: list[HypothesisReview] | None = None
+
+
+def agreement_categories(row: AllTestsReview) -> tuple[str, str]:
+    first, best = row.top1_category, row.best_top3_category
+    if first in LABELS.values() and best in LABELS.values():
+        return first, best
+
+    # Older exports used localized category names but stored the same rank codes.
+    hypotheses = row.hypotheses[:3] if row.hypotheses else []
+    if hypotheses and all(item.category_code in LABELS for item in hypotheses):
+        top1 = hypotheses[0]
+        top3 = min(hypotheses, key=lambda item: CATEGORY_ORDER.index(item.category_code))
+        if (first, best) == (top1.category, top3.category):
+            return LABELS[top1.category_code], LABELS[top3.category_code]
+    raise ValueError("Unknown or inconsistent agreement category")
 
 
 def all_tests(path: Path) -> dict[str, tuple[bool, bool]]:
-    categories = {"tam_uyumlu", "kismen_uyumlu", "uyumsuz", "tamamen_uyumsuz"}
-    success = {"tam_uyumlu", "kismen_uyumlu"}
+    success = {LABELS["T"], LABELS["P"]}
     outcomes: dict[str, tuple[bool, bool]] = {}
     for record in json.loads(path.read_text(encoding="utf-8")):
         row = AllTestsReview.model_validate(record)
-        if row.patient_id in outcomes or {row.top1_category, row.best_top3_category} - categories:
-            raise ValueError(f"Duplicate patient or unknown agreement category in {path}")
-        outcomes[row.patient_id] = row.top1_category in success, row.best_top3_category in success
+        if row.patient_id in outcomes:
+            raise ValueError(f"Duplicate patient in {path}")
+        first, best = agreement_categories(row)
+        outcomes[row.patient_id] = first in success, best in success
     return outcomes
 
 
