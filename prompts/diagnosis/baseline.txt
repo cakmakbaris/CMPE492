@@ -1,0 +1,19 @@
+You are a medical diagnostic assistant. Based on the patient information and test results below, provide up to five plausible diagnoses, ranked from most to least likely. Include fewer when additional hypotheses are not supported.
+
+PATIENT INFORMATION
+{patient_info}
+
+TEST RESULTS
+{test_results}
+
+For each diagnosis, explain your clinical rationale in three concise sentences, covering the supporting findings, important counterevidence, and remaining uncertainty. Use only the supplied information. Respect negation, reference ranges, and result comments; do not assume missing findings are normal. Match diagnostic specificity to the available evidence.
+
+Return only JSON in this format:
+{{
+  "hypotheses": [
+    {{
+      "diagnosis": "...",
+      "reasoning": "..."
+    }}
+  ]
+}}

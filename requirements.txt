@@ -1,0 +1,28 @@
+pydantic>=2.10,<3
+typing-extensions>=4.12
+pytest>=8,<10
+transformers>=5.3,<6
+torch>=2.6,<3
+sentencepiece>=0.2,<1
+accelerate>=1,<2
+psutil>=5.9,<8
+Pillow>=10,<13
+bitsandbytes>=0.48,<1
+fastapi>=0.115,<1
+uvicorn>=0.30,<1
+scikit-learn>=1.5,<2
+matplotlib>=3.9,<4
+joblib>=1.4,<2
+numpy>=1.24,<3
+threadpoolctl>=3.1,<4
+flash-linear-attention==0.6.0
+xgrammar==0.2.8
+triton-windows==3.9.0.post30; platform_system == "Windows"
+huggingface-hub>=2.3,<3
+safetensors>=0.8,<1
+
+# Archived agent experiments
+langchain-core>=1.0,<2
+langgraph>=1.0,<2
+google-genai>=1.75,<2
+python-dotenv>=1.2,<2

@@ -1,0 +1,29 @@
+# Publish only the project entry points, implementation, tests and prompt templates.
+# Everything else (including new top-level files) stays local by default.
+*
+!/.gitignore
+!/README.md
+!/requirements.txt
+!/pytest.ini
+
+!/src/
+!/src/**/
+!/src/**/*.py
+!/tests/
+!/tests/**/
+!/tests/**/*.py
+!/scripts/
+!/scripts/run.ps1
+!/prompts/
+!/prompts/diagnosis/
+!/prompts/diagnosis/agent.txt
+!/prompts/diagnosis/baseline.txt
+!/prompts/diagnosis/evidence_findings.txt
+!/prompts/diagnosis/stepwise.txt
+
+# Generated payloads can contain arbitrary filenames, even Python source.
+src/model_server/hidden_states/
+src/model_server/endpoint_activations/
+__pycache__/
+.env
+.env.*
